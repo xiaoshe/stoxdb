@@ -1,0 +1,1 @@
+a-d>b+c and (b+d)*c=0

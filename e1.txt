@@ -1,0 +1,1 @@
+(a+b-c)*d/(e - 1) >= f and a-4<-5 and (b=1 or b=-2 or b=3) AND c NOT LIKE '%ST'  and   PROFIT>10000000000 and (a=1 or b>2)

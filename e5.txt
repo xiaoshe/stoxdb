@@ -1,0 +1,1 @@
+(type=102 and ((((close<100) and (c=0))  and d=0)) and e=0 and f>0)
