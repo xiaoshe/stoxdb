@@ -7,17 +7,68 @@ StoxDB是一个全内存的 Key-Value 数据库，专门用来存储实时行情
 # 使用说明
 ## 服务端
 - 按自己的需求编写配置文件db.conf
-- 启动服务：
-<code>nohup ./stoxdb &</code>
+- 启动服务：nohup ./stoxdb &
+
 ## 客户端（python）
 ```python
 import stoxdb
-db = stoxdb.Client(host=..., port=..., magic=...)
+xdb = stoxdb.Client(host=..., port=..., magic=...)
 ```
 - 添加和修改
 ```python
-db.set("000001.SZ", {"name":"平安银行", "price":10.12})
+xdb.set("000001.SZ", {"code":"000001.SZ", "name":"平安银行", "incr":1.23})
 ```
+- 查询一：构造请求体
+```python
+# （1）按key查询
+req = stoxdb.Request()
+req.fields = "code,name,incr"
+req.keys = "000001.SZ"
+for x in xdb.get(req):
+    print(x)
+# 输出：['000001.SZ', '平安银行', 1.23]
+
+# （2）按key查询，输出字典格式
+req.fmt = "{}"
+for x in xdb.get(req):
+    print(x)
+# 输出：{'code': '000001.SZ', 'name': '平安银行', 'incr': -0.26}
+
+# （3）输出涨幅大于3的股票top10
+req = stoxdb.Request()
+req.fields = "code,name,incr"
+req.where = "incr>3" # 条件
+req.size = 10  # top10
+req.order = "incr desc" # 排序字段
+req.fmt = "{}"
+for x in xdb.get(req):
+    print(x)
+# 输出：
+#  {'code': '688655.SH', 'name': '迅捷兴', 'incr': 20.0}
+#  {'code': '300736.SZ', 'name': '百邦科技', 'incr': 20.0}
+#  {'code': '920036.BJ', 'name': '觅睿科技', 'incr': 19.32}
+#  {'code': '301369.SZ', 'name': '联动科技', 'incr': 15.92}
+#  {'code': '300840.SZ', 'name': '酷特智能', 'incr': 14.5}
+#  {'code': '301603.SZ', 'name': '乔锋智能', 'incr': 12.8}
+#  {'code': '300052.SZ', 'name': '中青宝', 'incr': 12.75}
+#  {'code': '300819.SZ', 'name': '聚杰微纤', 'incr': 12.47}
+#  {'code': '000584.SZ', 'name': 'ST工智', 'incr': 11.54}
+#  {'code': '920270.BJ', 'name': '天铭科技', 'incr': 11.46}
+```
+
+- 查询二：sql
+```python
+# 输出涨幅大于3的股票top10，字典格式输出
+sql = "select code,name,incr where incr>3 order by incr desc limit 10"
+for x in xdb.select(sql, True):
+    print(x)
+# 输出同
+```
+- 查询条件：
+-- 支持like，notlike（not与like中间没有空格）
+-- like字符串支持^开头、$结尾符号，例如，like '^ST'
+-- like字符串不支持大小写，例如，like 'ST' 与 like 'st' 返回结果不一样
+-- 不支持in
 
 # 文件说明
 - base.h：基础函数
