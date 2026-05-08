@@ -65,10 +65,10 @@ for x in xdb.select(sql, True):
 # 输出同
 ```
 - 查询条件：
--- 支持like，notlike（not与like中间没有空格）
--- like字符串支持^开头、$结尾符号，例如，like '^ST'
--- like字符串不支持大小写，例如，like 'ST' 与 like 'st' 返回结果不一样
--- 不支持in
+  - 支持like，notlike（not与like中间没有空格）
+  - like字符串支持^开头、$结尾符号，例如，like '^ST'
+  - like字符串不支持大小写，例如，like 'ST' 与 like 'st' 返回结果不一样
+  - 不支持in
 
 # 文件说明
 - base.h：基础函数
