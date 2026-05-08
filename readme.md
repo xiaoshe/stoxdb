@@ -1,15 +1,15 @@
-# ◇介绍
+# 介绍
 StoxDB是一个全内存的 Key-Value 数据库，专门用来存储实时行情数据。它支持配置公式自动计算字段，也支持按条件查询。
 一支股票一条数据：
 - key：长度不要超过64（超过64的丢弃全部数据），使用明文（非字节流），区分大小写，建议使用股票代码，例如000001.SZ
 - value：字段集合。
 
-# ◇使用说明
-## 服务端
+# 使用说明
+## ◇服务端
 - 按自己的需求编写配置文件db.conf
 - 启动服务：nohup ./stoxdb &
 
-## 客户端（python）
+## ◇客户端（python）
 ```python
 import stoxdb
 xdb = stoxdb.Client(host=..., port=..., magic=...)
@@ -70,7 +70,7 @@ for x in xdb.select(sql, True):
   - like字符串不支持大小写，例如，like 'ST' 与 like 'st' 返回结果不一样
   - 不支持in
 
-# ◇文件说明
+# 文件说明
 - base.h：基础函数
 - datypes.h：数据结构Field，用于配置文件
 - netypes.h：数据结构，用于网络传输
@@ -83,6 +83,6 @@ for x in xdb.select(sql, True):
 - server.h：epoll网络模型
 - main.cc：主流程
 
-## 类的调用关系
+## ◇类的调用关系
 - Meta     -> Record -> Server
 - Computer -> Record
