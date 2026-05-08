@@ -7,10 +7,14 @@ StoxDB是一个全内存的 Key-Value 数据库，专门用来存储实时行情
 # 使用说明
 ## 服务端
 - 按自己的需求编写配置文件db.conf
-- 启动服务：nohup ./stoxdb &
+- 启动服务：
+<code>nohup ./stoxdb &</code>
 ## 客户端（python）
-<code>
-import stoxdb
+<code>import stoxdb
+db = stoxdb.Client(host=..., port=..., magic=...)
+</code>
+- 添加和修改
+<code>db.set("000001.SZ", {"name":"平安银行", "price":10.12})
 </code>
 
 # 文件说明
