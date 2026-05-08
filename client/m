@@ -1,0 +1,13 @@
+#g++ -o t set.cc client.cc ../base.cc
+#g++ -o conf conf.cc client.cc ../base.cc ../buffer.cc
+#g++ -o column column.cc client.cc ../base.cc ../buffer.cc
+#g++ -o detail detail.cc client.cc ../base.cc ../buffer.cc
+#g++ -o status status.cc client.cc ../base.cc ../buffer.cc
+#g++ -o dump dump.cc client.cc ../base.cc ../buffer.cc
+#g++ -o set1 set1.cc client.cc ../base.cc ../buffer.cc
+#g++ -o set2 set2.cc client.cc ../base.cc ../buffer.cc
+#g++ -o set3 set3.cc client.cc ../base.cc ../buffer.cc
+#g++ -o get1 get1.cc client.cc ../base.cc ../buffer.cc
+#g++ -o scan1 scan1.cc client.cc ../base.cc ../buffer.cc
+g++ -o where where.cc client.cc ../base.cc ../buffer.cc
+#g++ -o t get.cc client.cc ../base.cc
