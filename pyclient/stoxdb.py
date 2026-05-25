@@ -1,6 +1,7 @@
 import socket
 import struct
 import time
+import math
 from enum import Enum
 
 class Operation(Enum):
@@ -25,15 +26,26 @@ class Type(Enum):
     kdouble = 25
     kchar   = 26
 
+def Int(v):
+    try:
+        return int(v)
+    except:
+        return 0
+def Float(v):
+    try:
+        return float(v)
+    except:
+        return 0
+
 class Request:
     """
         fields: 字段列表，逗号分割，例如：code,name,open,close,high,low
-        keys  : 指定key，逗号分割
+        keys  : 指定key，逗号分割，例如：000001.SZ,000001.SH
         where : 查询条件，例如：incr>2 and pe<50
         order : 排序方式，例如：incr desc, pe asc
         aggs  : 聚合函数，逗号分割，例如：count(1),max(incr),avg(close)
         group : 按某些字段分组，逗号分割，例如：type,code
-        offset: 数据返回位置
+        offset: 数据返回位置，默认0
         size  : 返回条数，-1全部，默认-1
         fmt   : 数据返回格式，只有两种：[]/{}，默认[]
     """
@@ -301,36 +313,42 @@ class Client:
             
             # 后value
             for name,v in value.items():
+                if v is None:
+                    # 跳过
+                    continue
+
                 name = name.lower()
                 if name not in self.fields:
                     print(f"字段不存在. {name}")
                     return 0
+                
                 fid,ftype,fsize = self.fields[name]
-
                 buff1 += struct.pack("h", fid)
                 if ftype == Type.kchar.value:
                     # 字符串
                     if type(v) != type(""):
-                        print(f"类型错误. {name}")
-                        return 0
-                    if len(v) > fsize:
-                        print(f"数据太长. {name}")
-                        return 0
-                    v = v.encode()
+                        v = ""
+                    while True:
+                        a = v.encode()
+                        if len(a) > fsize:
+                            v = v[:-1]
+                        else:
+                            break
+                    v = a
                     buff1 += struct.pack("h", len(v))
                     buff1 += v
                 elif ftype == Type.kint1.value:
-                    buff1 += struct.pack("b", v)
+                    buff1 += struct.pack("b", Int(v))
                 elif ftype == Type.kint2.value:
-                    buff1 += struct.pack("h", v)
+                    buff1 += struct.pack("h", Int(v))
                 elif ftype == Type.kint4.value:
-                    buff1 += struct.pack("i", v)
+                    buff1 += struct.pack("i", Int(v))
                 elif ftype == Type.kint8.value:
-                    buff1 += struct.pack("q", v)
+                    buff1 += struct.pack("q", Int(v))
                 elif ftype == Type.kfloat.value:
-                    buff1 += struct.pack("f", v)
+                    buff1 += struct.pack("f", Float(v))
                 elif ftype == Type.kdouble.value:
-                    buff1 += struct.pack("d", v)
+                    buff1 += struct.pack("d", Float(v))
                 else:
                     print(f"类型错误. {name}:{ftype}")
 
@@ -433,7 +451,6 @@ class Client:
 
         # 响应
         count, = struct.unpack("i", resp[0:4])
-        print("count", count)
         resp = resp[4:]
         ret = []
         for i in range(count):
@@ -465,11 +482,17 @@ class Client:
                 buff = buff[8:]
             elif ftype == Type.kfloat.value:
                 v, = struct.unpack("f", buff[:4])
-                v = round(v, 2)
+                if math.isinf(v) or math.isnan(v):
+                    v = 0
+                else:
+                    v = round(v, 2)
                 buff = buff[4:]
             elif ftype == Type.kdouble.value:
                 v, = struct.unpack("d", buff[:8])
-                v = round(v, 2)
+                if math.isinf(v) or math.isnan(v):
+                    v = 0
+                else:
+                    v = round(v, 2)
                 buff = buff[8:]
             data.append(v)
         if fmt == "[]":
@@ -482,11 +505,6 @@ class Client:
                 i += 1
             return t
 
-    def sql(self, sql:str, fmt:str="[]") -> list:
-        """
-        读取数据，sql格式: select xxx where xxx order xxx limit xx,yy
-        """
-        return ["aa"]
 
     def delete(self, req:Request) -> int:
         buff = b""
@@ -616,6 +634,74 @@ class Client:
         return ret
 
 
+    def select(self, sql:str, dict:bool=False) -> list:
+        """
+        读取数据
+        @sql格式（没有from）: select ___ where ___ group by ___ order by ___ limit ___,___
+        @dict：数据格式，True字典，False列表
+        """
+        sql = sql.lower()
+        sql = sql.replace("\n", " ").replace("\t", " ").replace("\r", " ")
+        while "  " in sql:
+            sql = sql.replace("  ", " ")
+        
+        # 找出所有的关键字
+        keypoints = []
+        p = sql.find("select")
+        if p != -1:
+            keypoints.append([p, "select"])
+        p = sql.find("where")
+        if p != -1:
+            keypoints.append([p, "where"])
+        p = sql.find("group by")
+        if p != -1:
+            keypoints.append([p, "group by"])
+        p = sql.find("order by")
+        if p != -1:
+            keypoints.append([p, "order by"])
+        p = sql.find("limit")
+        if p != -1:
+            keypoints.append([p, "limit"])
+
+        keypoints.append([len(sql), ""])
+        keypoints.sort(key=lambda x:x[0])
+
+        # 构造请求
+        req = Request()
+        req.fmt = "{}" if dict else "[]"
+
+        group = False
+        for i in range(len(keypoints)-1):
+            p,name = keypoints[i]
+            nextp,_ = keypoints[i+1]
+            s = sql[p+len(name)+1:nextp]
+            if name == "select":
+                req.fields = s
+                if "(" in req.fields:
+                    req.aggs = req.fields
+                    group = True
+            elif name == "where":
+                req.where = s
+            elif name == "group by":
+                req.group = s
+            elif name == "order by":
+                req.order = s
+            elif name == "limit":
+                if "," in s:
+                    a,b = s.split(",")
+                    req.offset = int(a.strip())
+                    req.size = int(b.strip())
+                else:
+                    req.offset = 0
+                    req.size = int(s.strip())
+
+        if group:
+            return self.agg(req)
+        else:
+            return self.get(req)
+
+
+
 if __name__ == '__main__':
     c = Client()
     """
@@ -633,18 +719,14 @@ if __name__ == '__main__':
 
     # 普通查询
     req = Request()
-    req.fields = "code,name,incr,close,tshares,BPS"
-    for x in c.get(req):
-        print(x)
-
-    # 增加查询条件
-    """
-    req.fields = "code,name,incr,close,mv,pe_ttm,pe_ly,pe_ty"
+    req.fields = "code,name,incr,close,mv"
     #req.where = "incr>1 and name like '电力'"
     req.where = "incr>1 and name like 'ST'" 
+    for x in c.get(req):
+        print(x)
+    """
     req.order = "incr desc"
     req.fmt = "{}"
-
     #print("delete", c.delete(req))
     req.fields = "*"
     req.keys = "600519.SH,688244.SH"
@@ -659,5 +741,9 @@ if __name__ == '__main__':
     for x in c.agg(req):
         print(x)
     '''
+    sql = "select code,name,incr where incr>0 order by incr desc limit 10"
+    sql = "select count(1),avg(close),max(close),min(close),max(code) where incr>0 group by type"
+    for x in c.select(sql):
+        print(x)
 
     #time.sleep(10)
